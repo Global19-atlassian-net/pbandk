@@ -52,7 +52,7 @@ internal class JsonValueUnmarshaller(private val jsonConfig: JsonConfig) {
         @Suppress("UNUSED_PARAMETER") isMapKey: Boolean,
         body: (String) -> T
     ) = try {
-        val content = value.content
+        val content = value.jsonPrimitive.content
         // The protobuf conformance test suite is pretty strict about requiring parsers to reject parsable numeric
         // values that don't conform to the spec.
         when (content.getOrNull(0)) {
@@ -86,18 +86,18 @@ internal class JsonValueUnmarshaller(private val jsonConfig: JsonConfig) {
     // The protobuf conformance test suite is pretty strict about requiring parsers to reject any other variations
     // (such as upper-case or quoted) aside from the two below.
     fun readBool(value: JsonElement, isMapKey: Boolean = false): Boolean =
-        if (!isMapKey && value is JsonLiteral && value.isString) {
+        if (!isMapKey && value is JsonPrimitive && value.isString) {
             throw InvalidProtocolBufferException("bool field must not be quoted in JSON")
-        } else when (value.content) {
+        } else when (value.jsonPrimitive.content) {
             "true" -> true
             "false" -> false
             else -> throw InvalidProtocolBufferException("bool field did not contain a boolean value in JSON")
         }
 
     fun readEnum(value: JsonElement, enumCompanion: Message.Enum.Companion<*>): Message.Enum = try {
-        val p = value.primitive
+        val p = value.jsonPrimitive
         p.intOrNull?.let { return enumCompanion.fromValue(it) }
-        require(p is JsonLiteral && p.isString) { "Non-numeric enum values must be quoted" }
+        require(p.isString) { "Non-numeric enum values must be quoted" }
         enumCompanion.fromName(p.content)
     } catch (e: Exception) {
         throw InvalidProtocolBufferException("enum field did not contain a number or valid enum value", e)
@@ -105,27 +105,27 @@ internal class JsonValueUnmarshaller(private val jsonConfig: JsonConfig) {
 
     fun readFloat(value: JsonElement): Float = try {
         // TODO handle Inf and NaN
-        value.float
+        value.jsonPrimitive.float
     } catch (e: Exception) {
         throw InvalidProtocolBufferException("float field did not contain a float value in JSON", e)
     }
 
     fun readDouble(value: JsonElement): Double = try {
         // TODO handle Inf and NaN
-        value.double
+        value.jsonPrimitive.double
     } catch (e: Exception) {
         throw InvalidProtocolBufferException("double field did not contain a double value in JSON", e)
     }
 
     fun readString(value: JsonElement, @Suppress("UNUSED_PARAMETER") isMapKey: Boolean = false): String = try {
-        require(value is JsonLiteral && value.isString) { "string field wasn't quoted" }
+        require(value is JsonPrimitive && value.isString) { "string field wasn't quoted" }
         value.content
     } catch (e: Exception) {
         throw InvalidProtocolBufferException("string field did not contain a string value in JSON", e)
     }
 
     fun readBytes(value: JsonElement): ByteArr = try {
-        ByteArr(Util.base64ToBytes(value.content))
+        ByteArr(Util.base64ToBytes(value.jsonPrimitive.content))
     } catch (e: Exception) {
         throw InvalidProtocolBufferException("bytes field did not contain a base64-encoded string value in JSON", e)
     }
@@ -154,7 +154,7 @@ internal class JsonValueUnmarshaller(private val jsonConfig: JsonConfig) {
             .map { (k, v) ->
                 @Suppress("UNCHECKED_CAST")
                 (MessageMap.Entry(
-                    readValue(JsonLiteral(k), type.entryCompanion.keyType, true),
+                    readValue(JsonPrimitive(k), type.entryCompanion.keyType, true),
                     readValue(v, type.entryCompanion.valueType),
                     type.entryCompanion as MessageMap.Entry.Companion<Any?, Any?>
                 ))

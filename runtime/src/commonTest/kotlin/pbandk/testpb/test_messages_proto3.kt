@@ -172,10 +172,7 @@ data class TestAllTypesProto3(
         override fun unmarshal(u: pbandk.MessageUnmarshaller) = TestAllTypesProto3.unmarshalImpl(u)
 
         override val descriptor: pbandk.MessageDescriptor<TestAllTypesProto3> by lazy {
-            pbandk.MessageDescriptor(
-                messageClass = TestAllTypesProto3::class,
-                messageCompanion = this,
-                fields = listOf(
+            val fieldsList = listOf(
                     pbandk.FieldDescriptor(
                         messageDescriptor = this::descriptor,
                         name = "optional_int32",
@@ -1138,6 +1135,10 @@ data class TestAllTypesProto3(
                         value = TestAllTypesProto3::fieldName18_
                     )
                 )
+            pbandk.MessageDescriptor(
+                messageClass = TestAllTypesProto3::class,
+                messageCompanion = this,
+                fields = fieldsList
             )
         }
     }

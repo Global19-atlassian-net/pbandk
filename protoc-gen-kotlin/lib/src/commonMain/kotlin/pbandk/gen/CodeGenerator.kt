@@ -122,23 +122,29 @@ open class CodeGenerator(
         // https://kotlinlang.org/docs/reference/native/concurrency.html#global-variables-and-singletons. In order to
         // break the circular references, `descriptor` needs to be a `lazy` field.
         line("override val descriptor: pbandk.MessageDescriptor<$fullTypeName> by lazy {").indented {
+            // XXX: When a message has lots of fields (e.g. `TestAllTypesProto3`), declaring the list of field
+            // descriptors directly in the [MessageDescriptor] constructor can cause a stack overflow in the Kotlin
+            // compiler (as of Kotlin 1.4). As a workaround, we declare the list of fields as a separate variable rather
+            // than inline in the constructor.
+            line("val fieldsList = listOf(").indented {
+                val allFields = type.sortedStandardFieldsWithOneOfs()
+                allFields.forEachIndexed { i, (field, oneof) ->
+                    line("pbandk.FieldDescriptor(").indented {
+                        line("messageDescriptor = this::descriptor,")
+                        line("name = \"${field.name}\",")
+                        line("number = ${field.number},")
+                        line("type = ${field.fieldDescriptorType(oneof != null)},")
+                        oneof?.let { line("oneofMember = true,") }
+                        field.jsonName?.let { line("jsonName = \"$it\",") }
+                        line("value = $fullTypeName::${field.kotlinFieldName}")
+                    }.line(if (i == allFields.lastIndex) ")" else "),")
+                }
+            }.line(")")
+
             line("pbandk.MessageDescriptor(").indented {
                 line("messageClass = $fullTypeName::class,")
                 line("messageCompanion = this,")
-                line("fields = listOf(").indented {
-                    val allFields = type.sortedStandardFieldsWithOneOfs()
-                    allFields.forEachIndexed { i, (field, oneof) ->
-                        line("pbandk.FieldDescriptor(").indented {
-                            line("messageDescriptor = this::descriptor,")
-                            line("name = \"${field.name}\",")
-                            line("number = ${field.number},")
-                            line("type = ${field.fieldDescriptorType(oneof != null)},")
-                            oneof?.let { line("oneofMember = true,") }
-                            field.jsonName?.let { line("jsonName = \"$it\",") }
-                            line("value = $fullTypeName::${field.kotlinFieldName}")
-                        }.line(if (i == allFields.lastIndex) ")" else "),")
-                    }
-                }.line(")")
+                line("fields = fieldsList")
             }.line(")")
         }.line("}")
     }

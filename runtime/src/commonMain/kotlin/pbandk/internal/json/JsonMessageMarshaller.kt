@@ -9,15 +9,13 @@ import kotlin.Any
 import kotlin.reflect.KProperty1
 
 internal class JsonMessageMarshaller(private val jsonConfig: JsonConfig) : MessageMarshaller {
-    private val json = Json(
-        JsonConfiguration.Stable.copy(
-            prettyPrint = true
-        )
-    )
+    private val json = Json {
+        prettyPrint = true
+    }
     private val jsonValueMarshaller = JsonValueMarshaller(jsonConfig)
     private var currentMessage: JsonElement? = null
 
-    fun toJsonString(): String = currentMessage?.let { json.stringify(JsonElementSerializer, it) }.orEmpty()
+    fun toJsonString(): String = currentMessage?.let { json.encodeToString(JsonElement.serializer(), it) }.orEmpty()
 
     internal fun toJsonElement(): JsonElement =
         currentMessage ?: error("Must call writeMessage() before toJsonElement()")
